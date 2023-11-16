@@ -1,16 +1,15 @@
 import requests
 
-repo = "https://api.github.com/repos/vaticle/typedb-studio/releases"
-filename_all = "all-versions.adoc"
-filename_latest = "latest-version.adoc"
-errors = []
+GITHUB_REPO = "vaticle/typedb-studio"
+API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
+FILENAME_ALL = "all-versions.adoc"
+FILENAME_LATEST = "latest-version.adoc"
+ERRORS = []
 
 
 def check_url(url):
-    if requests.head(url).status_code < 400:
-        return True
-    else:
-        return False
+    """Check if the URL exists and accessible (status code < 400)."""
+    return requests.head(url).ok
 
 
 def get_versions(url):
@@ -50,7 +49,7 @@ def get_versions(url):
                 if "typedb-studio-linux" in asset["name"]:
                     # print(asset["browser_download_url"])
                     if not check_url(asset["browser_download_url"]):
-                        errors.append(asset["browser_download_url"])
+                        ERRORS.append(asset["browser_download_url"])
                         release["lin"]["check"] = "Fail"
                     else:
                         release["lin"]["check"] = "PASSED"
@@ -58,21 +57,21 @@ def get_versions(url):
                 elif "typedb-studio-windows" in asset["name"]:
                     # print(asset["browser_download_url"])
                     if not check_url(asset["browser_download_url"]):
-                        errors.append(asset["browser_download_url"])
+                        ERRORS.append(asset["browser_download_url"])
                         release["win"]["check"] = "Fail"
                     else:
                         release["win"]["check"] = "PASSED"
                     release["win"]["url"] = asset["browser_download_url"]
                 elif "typedb-studio-mac" in asset["name"]:
                     if not check_url(asset["browser_download_url"]):
-                        errors.append(asset["browser_download_url"])
+                        ERRORS.append(asset["browser_download_url"])
                         release["mac"]["check"] = "Fail"
                     else:
                         release["mac"]["check"] = "PASSED"
                     # print(asset["browser_download_url"])
                     release["mac"]["url"] = asset["browser_download_url"]
                 else:
-                    errors.append(asset["name"] + ": unrecognized asset.")
+                    ERRORS.append(asset["name"] + ": unrecognized asset.")
             result.append(release)
             print(str(count) + ": version " + json_element["tag_name"] + " will be processed.")
         else:
@@ -98,15 +97,17 @@ def write_file(file_name, content):
         f.write(content)
 
 
-versions = get_versions(repo)
-for error in errors:
-    print("Warning! The following error occurred while checking asset urls:", error)
+if __name__ == "__main__":
+    """Main workflow"""
+    versions = get_versions(API_URL)
+    for error in ERRORS:
+        print("Warning! The following error occurred while checking asset urls:", error)
 
-all_downloads = generate_table_contents(versions)
-# print(all_downloads)
-write_file(filename_all, all_downloads)
-print("\nFile", filename_all, "write complete!")
+    all_downloads = generate_table_contents(versions)
+    # print(all_downloads)
+    write_file(FILENAME_ALL, all_downloads)
+    print("\nFile", FILENAME_ALL, "write complete!")
 
-latest_downloads = generate_table_contents([versions[0]])
-write_file(filename_latest, latest_downloads)
-print("\nFile", filename_latest, "write complete!")
+    latest_downloads = generate_table_contents([versions[0]])
+    write_file(FILENAME_LATEST, latest_downloads)
+    print("\nFile", FILENAME_LATEST, "write complete!")
