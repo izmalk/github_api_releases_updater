@@ -31,18 +31,49 @@ def get_release_data(release):
     data = {
         "version": release["tag_name"],
         "release_notes": release["html_url"],
-        "assets": {"win": {}, "lin": {}, "mac": {}}
+        "assets": {
+            "win": {
+                "arm": {
+                    "url": {},
+                    "check": {}
+                },
+                "x86": {
+                    "url": {},
+                    "check": {}
+                }
+            },
+            "lin": {
+                "arm": {
+                    "url": {},
+                    "check": {}
+                },
+                "x86": {
+                    "url": {},
+                    "check": {}
+                }
+            },
+            "mac": {
+                "arm": {
+                    "url": {},
+                    "check": {}
+                },
+                "x86": {
+                    "url": {},
+                    "check": {}
+                }
+            }
+        }
     }
+    # todo rewrite with classes and objects
     for asset in release["assets"]:
         name = asset["name"].lower()
+        key = "arm" if "arm64" in name else "x86" if "x86_64" in name else "x86"
         if "typedb-all-linux" in name:
-            key = "arm64" if "arm64" in name else "x86_64" if "x86_64" in name else "url"
-            data["assets"]["lin"][key], data["assets"]["lin"]["check"] = get_asset_data(asset)
+            data["assets"]["lin"][key]["url"], data["assets"]["lin"][key]["check"] = get_asset_data(asset)
         elif "typedb-all-mac" in name:
-            key = "arm64" if "arm64" in name else "x86_64" if "x86_64" in name else "url"
-            data["assets"]["mac"][key], data["assets"]["mac"]["check"] = get_asset_data(asset)
+            data["assets"]["mac"][key]["url"], data["assets"]["mac"][key]["check"] = get_asset_data(asset)
         elif "typedb-all-windows" in name:
-            data["assets"]["win"]["url"], data["assets"]["win"]["check"] = get_asset_data(asset)
+            data["assets"]["win"][key]["url"], data["assets"]["win"][key]["check"] = get_asset_data(asset)
     return data
 
 
@@ -68,14 +99,15 @@ def generate_table_contents(versions, tags=False):
             if tags:
                 result += f"\n// tag::{os_key}[]\n"
             assets = version["assets"][os_key]
-            if assets.get("url"):
-                result += f"{assets['url']}[x86_64]\n"
-            else:
-                result += f"{assets['x86_64']}[x86_64] /"
-                result += f" {assets['arm64']}[arm64]\n"
+            result += f"{assets['x86']['url']}[x86_64]"
+            url_check_status = f"{assets['x86']['check']}"
+            if assets["arm"]['url'] != {}:
+                result += f" / {assets['arm']['url']}[arm64]"
+                url_check_status += f" {assets['arm']['check']}"
+            result += "\n"
             if tags:
                 result += f"// end::{os_key}[]\n"
-            result += f"// Check: {assets.get('check', '')}\n"
+            result += f"// Check: {url_check_status}\n"
     return result
 
 
@@ -109,3 +141,6 @@ if __name__ == "__main__":
         print("\nFile", FILENAME_LATEST, "write complete!")
     except IOError:
         print("Error while writing file:", FILENAME_LATEST)
+
+    for error in ERRORS:
+        print("Warning! The following error occurred:", error)
