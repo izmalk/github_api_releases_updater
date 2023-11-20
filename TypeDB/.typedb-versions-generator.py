@@ -7,6 +7,48 @@ FILENAME_LATEST = "latest-version.adoc"
 ERRORS = []
 
 
+class Asset:
+    def __init__(self, url=None, check=None):
+        self.url = url
+        self.check = check
+
+
+class Arch:
+    def __init__(self):
+        self.arm = Asset()
+        self.x86 = Asset()
+
+
+class Release:
+    def __init__(self, tag_name, rn_url):
+        self.version = tag_name
+        self.release_notes_url = rn_url
+        self.assets = {
+            "win": Arch(),
+            "lin": Arch(),
+            "mac": Arch()
+        }
+
+    def __str__(self, tags=False):
+        result = ""
+        result += f"\n| {self.release_notes_url}[{self.version}]\n"
+        for os_key in ["mac", "lin", "win"]:
+            result += '| '
+            if tags:
+                result += f"\n// tag::{os_key}[]\n"
+            assets = self.assets[os_key]
+            result += f"{assets.x86.url}[x86_64]"
+            url_check_status = f"{assets.x86.check}"
+            if assets.arm.url is not None:
+                result += f" / {assets.arm.url}[arm64]"
+                url_check_status += f" {assets.arm.check}"
+            result += "\n"
+            if tags:
+                result += f"// end::{os_key}[]\n"
+            result += f"// Check: {url_check_status}\n"
+        return result
+
+
 def check_url(url):
     """Check if the URL exists and accessible (status code < 400)."""
     return requests.head(url).ok
@@ -28,53 +70,25 @@ def get_versions(url):
 
 def get_release_data(release):
     """Process each release data and extract information."""
-    data = {
-        "version": release["tag_name"],
-        "release_notes": release["html_url"],
-        "assets": {
-            "win": {
-                "arm": {
-                    "url": {},
-                    "check": {}
-                },
-                "x86": {
-                    "url": {},
-                    "check": {}
-                }
-            },
-            "lin": {
-                "arm": {
-                    "url": {},
-                    "check": {}
-                },
-                "x86": {
-                    "url": {},
-                    "check": {}
-                }
-            },
-            "mac": {
-                "arm": {
-                    "url": {},
-                    "check": {}
-                },
-                "x86": {
-                    "url": {},
-                    "check": {}
-                }
-            }
-        }
-    }
-    # todo rewrite with classes and objects
+    release_data = Release(release["tag_name"], release["html_url"])
     for asset in release["assets"]:
         name = asset["name"].lower()
-        key = "arm" if "arm64" in name else "x86" if "x86_64" in name else "x86"
         if "typedb-all-linux" in name:
-            data["assets"]["lin"][key]["url"], data["assets"]["lin"][key]["check"] = get_asset_data(asset)
+            if "arm64" in name:
+                release_data.assets["lin"].arm.url, release_data.assets["lin"].arm.check = get_asset_data(asset)
+            else:
+                release_data.assets["lin"].x86.url, release_data.assets["lin"].x86.check = get_asset_data(asset)
         elif "typedb-all-mac" in name:
-            data["assets"]["mac"][key]["url"], data["assets"]["mac"][key]["check"] = get_asset_data(asset)
+            if "arm64" in name:
+                release_data.assets["mac"].arm.url, release_data.assets["mac"].arm.check = get_asset_data(asset)
+            else:
+                release_data.assets["mac"].x86.url, release_data.assets["mac"].x86.check = get_asset_data(asset)
         elif "typedb-all-windows" in name:
-            data["assets"]["win"][key]["url"], data["assets"]["win"][key]["check"] = get_asset_data(asset)
-    return data
+            if "arm64" in name:
+                release_data.assets["win"].arm.url, release_data.assets["win"].arm.check = get_asset_data(asset)
+            else:
+                release_data.assets["win"].x86.url, release_data.assets["win"].x86.check = get_asset_data(asset)
+    return release_data
 
 
 def get_asset_data(asset):
@@ -93,21 +107,7 @@ def generate_table_contents(versions, tags=False):
     """Generate the table contents in asciidoc syntax."""
     result = ""
     for version in versions:
-        result += f"\n| {version['release_notes']}[{version['version']}]\n"
-        for os_key in ["mac", "lin", "win"]:
-            result += '| '
-            if tags:
-                result += f"\n// tag::{os_key}[]\n"
-            assets = version["assets"][os_key]
-            result += f"{assets['x86']['url']}[x86_64]"
-            url_check_status = f"{assets['x86']['check']}"
-            if assets["arm"]['url'] != {}:
-                result += f" / {assets['arm']['url']}[arm64]"
-                url_check_status += f" {assets['arm']['check']}"
-            result += "\n"
-            if tags:
-                result += f"// end::{os_key}[]\n"
-            result += f"// Check: {url_check_status}\n"
+        result += version.__str__(tags)
     return result
 
 
